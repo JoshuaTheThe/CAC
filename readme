@@ -1,3 +1,2 @@
 C* (C Asterisk) Compiler
-a simple extension of C
-it should be able to compile most C programs
+a simple C-Like language
