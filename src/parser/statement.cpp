@@ -42,8 +42,37 @@ AST *Parser::ParseBlock(void)
         return Block;
 }
 
+AST *Parser::ParseType(void)
+{
+        Tokeniser::Token tok = Peek();
+        switch (tok.Type)
+        {
+                case Tokeniser::TYPE_KEYWORD_AUTO:
+                case Tokeniser::TYPE_KEYWORD_INT:
+                case Tokeniser::TYPE_KEYWORD_SHORT:
+                case Tokeniser::TYPE_KEYWORD_CHAR:
+                case Tokeniser::TYPE_KEYWORD_SIGNED:
+                case Tokeniser::TYPE_KEYWORD_UNSIGNED:
+                case Tokeniser::TYPE_KEYWORD_STRUCT:
+                case Tokeniser::TYPE_KEYWORD_LONG:
+                case Tokeniser::TYPE_KEYWORD_FLOAT:
+                case Tokeniser::TYPE_KEYWORD_VOID:
+                case Tokeniser::TYPE_KEYWORD_DOUBLE:
+                case Tokeniser::TYPE_KEYWORD_CONST:
+                case Tokeniser::TYPE_STAR:
+                        Consume();
+                        AST *Node = new AST(AST::AST_TYPE, tok.Type);
+                        AST *Child = ParseType();
+                        if (Child)
+                                Node->AddChild(Child);
+                        return Node;
+        }
+        return nullptr;
+}
+
 AST *Parser::ParseStatement(void)
 {
+        AST *type = ParseType();
         Tokeniser::Token tok = Peek();
         AST *node = nullptr;
 
@@ -77,26 +106,30 @@ AST *Parser::ParseStatement(void)
         case Tokeniser::TYPE_KEYWORD_GOTO:
                 node = ParseGotoStatement();
                 break;
-        case Tokeniser::TYPE_IDENTIFIER:
-                if (Peek().Type == Tokeniser::TYPE_COLON)
-                {
-                        node = ParseLabeledStatement();
-                }
-                // else
-                // {
-                //         node = ParseDeclarationOrExpression();
-                // }
                 break;
         case Tokeniser::TYPE_SEMICOLON:
                 Consume();
                 node = new AST(AST::AST_EXPR);
                 break;
+        case Tokeniser::TYPE_IDENTIFIER:
+                if (Peek().Type == Tokeniser::TYPE_COLON)
+                {
+                        node = ParseLabeledStatement();
+                        break;
+                }
         default:
                 node = ParseExpression();
                 Consume((Tokeniser::Token){.Type = Tokeniser::TYPE_SEMICOLON});
                 break;
         }
 
+        if (node && type)
+        {
+                type->AddChild(node);
+                return type;
+        }
+        else if (type && !node)
+                return type;
         return node;
 }
 

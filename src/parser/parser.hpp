@@ -30,6 +30,9 @@ public:
                 AST_LABEL,
                 AST_DECLARATION,
                 AST_VARDECL,
+                AST_FNDECL,
+
+                AST_TYPE,
 
                 /* Factors */
                 AST_NUMBER,
@@ -50,6 +53,10 @@ public:
                 AST_MULTIPLICATIVE,
                 AST_UNARY,
                 AST_EXPR,
+
+                AST_MEMBER_ACCESS,
+                AST_ARRAY_SUBSCRIPT,
+                AST_PTR_MEMBER_ACCESS,
         };
 
 private:
@@ -97,6 +104,7 @@ public:
         AST *ParseFactor(void);
         AST *ParsePrimary(void);
         AST *ParseUnary(void);
+        AST *ParsePostfix(void);
         AST *ParseMultiplicative(void);
         AST *ParseAdditive(void);
         AST *ParseShift(void);
@@ -121,6 +129,7 @@ public:
         AST *ParseContinueStatement(void);
         AST *ParseGotoStatement(void);
         AST *ParseLabeledStatement(void);
+        AST *ParseType(void);
 };
 
 #endif

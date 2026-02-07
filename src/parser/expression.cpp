@@ -10,7 +10,7 @@ AST *Parser::ParseFactor(void)
                 return new AST(Token.Integer);
         case Tokeniser::TYPE_IDENTIFIER:
                 Consume();
-                return new AST(Token.Identifier, AST::AST_IDENTIFIER);
+                return new AST(std::string(Token.Identifier), AST::AST_IDENTIFIER);
         default:
                 return nullptr;
         }
@@ -24,7 +24,8 @@ AST *Parser::ParsePrimary(void)
         {
                 Consume();
                 AST *node = ParseExpression();
-                Consume((Tokeniser::Token){.Type = Tokeniser::TYPE_RPAREN});
+
+                Consume((Tokeniser::Token){.Type=Tokeniser::TYPE_RPAREN});
                 return node;
         }
 
@@ -53,9 +54,53 @@ AST *Parser::ParseUnary(void)
         return ParsePrimary();
 }
 
+AST *Parser::ParsePostfix(void)
+{
+        AST *node = ParseUnary();
+
+        while (true)
+        {
+                Tokeniser::Token tok = Peek();
+
+                switch (tok.Type)
+                {
+                case Tokeniser::TYPE_LBRACKET:
+                {
+                        AST *arrayNode = new AST(AST::AST_ARRAY_SUBSCRIPT);
+                        arrayNode->AddChild(node);
+                        Consume();
+                        arrayNode->AddChild(ParseExpression());
+                        Consume((Tokeniser::Token){.Type = Tokeniser::TYPE_RBRACKET});
+                        node = arrayNode;
+                        break;
+                }
+                case Tokeniser::TYPE_DOT:
+                case Tokeniser::TYPE_ARROW:
+                {
+                        AST *memberNode = new AST(
+                            tok.Type == Tokeniser::TYPE_DOT ? AST::AST_MEMBER_ACCESS : AST::AST_PTR_MEMBER_ACCESS);
+                        memberNode->AddChild(node);
+                        Consume();
+
+                        Tokeniser::Token ident = Peek();
+                        if (ident.Type != Tokeniser::TYPE_IDENTIFIER)
+                        {
+                                return nullptr;
+                        }
+                        Consume();
+                        memberNode->AddChild(new AST(ident.Identifier, AST::AST_IDENTIFIER));
+                        node = memberNode;
+                        break;
+                }
+                default:
+                        return node;
+                }
+        }
+}
+
 AST *Parser::ParseMultiplicative(void)
 {
-        AST *first = ParseUnary();
+        AST *first = ParsePostfix();
         Tokeniser::Token tok = Peek();
 
         if (tok.Type == Tokeniser::TYPE_STAR || tok.Type == Tokeniser::TYPE_SLASH || tok.Type == Tokeniser::TYPE_PERCENT)
@@ -63,7 +108,7 @@ AST *Parser::ParseMultiplicative(void)
                 AST *node = new AST(AST::AST_MULTIPLICATIVE, tok.Type);
                 node->AddChild(first);
                 Consume();
-                node->AddChild(ParseUnary());
+                node->AddChild(ParsePostfix());
                 return node;
         }
 
@@ -247,7 +292,7 @@ AST *Parser::ParseAssignment(void)
         AST *first = ParseTernary();
         Tokeniser::Token tok = Peek();
 
-        if (tok.Type >= Tokeniser::TYPE_PLUSEQ && tok.Type <= Tokeniser::TYPE_CARETEQ)
+        if ((tok.Type >= Tokeniser::TYPE_PLUSEQ && tok.Type <= Tokeniser::TYPE_CARETEQ) || tok.Type == Tokeniser::TYPE_EQ)
         {
                 AST *node = new AST(AST::AST_ASSIGNMENT);
                 Consume();
